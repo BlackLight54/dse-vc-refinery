@@ -95,6 +95,7 @@ pred non_connected_creds(CredentialEntity entity1, CredentialEntity entity2) <->
 %     CredentialRelationship::target(r,t),
 %     exists(t).
 
+% TODO: In the same credential, an entity cannot have two credential entities
 Entity(Tom).
 Entity(Blue_eyes).
 Entity(Man).
@@ -106,4 +107,4 @@ source(is_a,Tom).
 target(is_a,Man).
 
 
-scope node = 5..100, Relationship = 2, Entity = 3..5,Credential = 2, CredentialEntity = 4.
+scope node = 5..100, Relationship = 2, Entity = 3..5,Credential = 1, CredentialEntity = 3.
