@@ -3,14 +3,15 @@ pred CIM(e) <->
     Entity(e);
     Prop(e).
 class Entity {
-    contains Prop[0..*] outgoing opposite source
+    contains Prop[] outgoing opposite source
+    Prop[] incoming opposite target
 	contains CredentialEntity[1..10] trace opposite from
 }
 
 class Prop {
 	container Entity source opposite outgoing
-    Entity[1] target
-    contains CredentialProp[1] trace opposite from
+    Entity[1] target opposite incoming
+    CredentialProp[1] trace opposite _
 }
 
 pred neighbours(Entity s, Entity t) <->
@@ -32,14 +33,15 @@ pred PIM(e) <->
     CredentialProp(e);
     Credential(e).
 class CredentialEntity {
-	container Entity from opposite trace
-    CredentialProp[0..10] outgoing opposite source
+	Entity from opposite trace
+    contains CredentialProp[0..10] outgoing opposite source
+    CredentialProp[0..10] incoming opposite target
     contains Credential _ opposite credentialSubject
 }
 class CredentialProp {
-	CredentialEntity[1] source opposite outgoing
-    CredentialEntity[1] target
-    container Prop from opposite trace
+	container CredentialEntity source opposite outgoing
+    CredentialEntity[1] target opposite incoming
+    Prop[1] _ opposite trace
 }
 class Credential {
 	container CredentialEntity credentialSubject opposite _
@@ -51,7 +53,7 @@ pred cred_neigbors(CredentialEntity s, CredentialEntity t) <->
     CredentialProp::target(e, t);
     CredentialProp::source(e, t),
     CredentialProp::target(e, s).
-error prop_and_cred_prop_have_dont_have_same_source(CredentialProp cred_prop) <->
+error prop_and_cred_prop_have_have_same_source(CredentialProp cred_prop) <->
     Prop::trace(prop,cred_prop),
     Prop::source(prop,entity),
     CredentialProp::source(cred_prop,cred_entity),
@@ -85,20 +87,20 @@ error cred_points_to_non_aligned_entity(Credential cred) <->
 Entity(Tom).
 Entity(Blue_eyes).
 Entity(Man).
-Entity(Janitor).
+% Entity(Janitor).
 Prop(has).
 Prop::source(has,Tom).
 Prop::target(has,Blue_eyes).
 Prop(is_a).
 Prop::source(is_a,Tom).
 Prop::target(is_a,Man).
-Prop(has_job).
-Prop::source(has_job,Tom).
-Prop::target(has_job,Janitor).
+% Prop(has_job).
+% Prop::source(has_job,Tom).
+% Prop::target(has_job,Janitor).
 
 scope node = 5..20
-      , Prop = 3
-      , Entity = 4
+      , Prop = 2
+      , Entity = 3
       , Credential = 2
       % , CredentialEntity = 4
       .
