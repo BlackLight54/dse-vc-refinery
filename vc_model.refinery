@@ -11,7 +11,7 @@ class Entity {
 class Prop {
 	container Entity source opposite outgoing
     Entity[1] target opposite incoming
-    CredentialProp[1] trace opposite _
+    contains CredentialProp[1] trace opposite from
 }
 
 pred neighbours(Entity s, Entity t) <->
@@ -33,19 +33,20 @@ pred PIM(e) <->
     CredentialProp(e);
     Credential(e).
 class CredentialEntity {
-	Entity from opposite trace
-    contains CredentialProp[0..10] outgoing opposite source
-    CredentialProp[0..10] incoming opposite target
+	container Entity from opposite trace
+    CredentialProp[] outgoing opposite source
+    CredentialProp[] incoming opposite target
     contains Credential _ opposite credentialSubject
 }
 class CredentialProp {
-	container CredentialEntity source opposite outgoing
+	CredentialEntity[1] source opposite outgoing
     CredentialEntity[1] target opposite incoming
-    Prop[1] _ opposite trace
+    container Prop from opposite trace
 }
 class Credential {
 	container CredentialEntity credentialSubject opposite _
 }
+
 
 pred cred_neigbors(CredentialEntity s, CredentialEntity t) <->
     CredentialProp(e),
@@ -53,16 +54,18 @@ pred cred_neigbors(CredentialEntity s, CredentialEntity t) <->
     CredentialProp::target(e, t);
     CredentialProp::source(e, t),
     CredentialProp::target(e, s).
-error prop_and_cred_prop_have_have_same_source(CredentialProp cred_prop) <->
-    Prop::trace(prop,cred_prop),
-    Prop::source(prop,entity),
+error prop_and_cred_prop_source_should_align(CredentialProp cred_prop) <->
     CredentialProp::source(cred_prop,cred_entity),
-    !Entity::trace(entity,cred_entity).
-error prop_and_cred_prop_have_dont_have_same_target(CredentialProp cred_prop) <->
-    Prop::trace(prop,cred_prop),
-    Prop::target(prop,entity),
+    CredentialProp::from(cred_prop,prop),
+    Prop::source(prop,prop_entity),
+    Entity::trace(entity,cred_entity),
+    prop_entity != entity.
+error prop_and_cred_prop_target_should_align(CredentialProp cred_prop) <->
     CredentialProp::target(cred_prop,cred_entity),
-    !Entity::trace(entity,cred_entity).
+    CredentialProp::from(cred_prop,prop),
+    Prop::target(prop,prop_entity),
+    Entity::trace(entity,cred_entity),
+    prop_entity != entity.
 error no_cred_props_for_cred_entity(CredentialEntity ent) <->
     !CredentialProp::target(_,ent),
     !CredentialProp::source(_,ent).
@@ -87,20 +90,20 @@ error cred_points_to_non_aligned_entity(Credential cred) <->
 Entity(Tom).
 Entity(Blue_eyes).
 Entity(Man).
-% Entity(Janitor).
+Entity(Janitor).
 Prop(has).
 Prop::source(has,Tom).
 Prop::target(has,Blue_eyes).
 Prop(is_a).
 Prop::source(is_a,Tom).
 Prop::target(is_a,Man).
-% Prop(has_job).
-% Prop::source(has_job,Tom).
-% Prop::target(has_job,Janitor).
+Prop(has_job).
+Prop::source(has_job,Tom).
+Prop::target(has_job,Janitor).
 
 scope node = 5..20
-      , Prop = 2
-      , Entity = 3
-      , Credential = 2
+      , Prop = 3
+      , Entity = 4
+      % , Credential = 3
       % , CredentialEntity = 4
       .
