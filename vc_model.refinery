@@ -51,7 +51,8 @@ class Credential {
 pred cred_neigbors(CredentialEntity s, CredentialEntity t) <->
     CredentialProp(e),
     CredentialProp::source(e, s),
-    CredentialProp::target(e, t);
+    CredentialProp::target(e, t)
+;
     CredentialProp::source(e, t),
     CredentialProp::target(e, s).
 error prop_and_cred_prop_source_should_align(CredentialProp cred_prop) <->
@@ -85,6 +86,16 @@ error cred_points_to_non_aligned_entity(Credential cred) <->
     Credential::credentialSubject(cred,subj),
     !aligned_entity(subj).
 
+propagation rule c1(CredentialEntity subject) <->
+    must Credential::credentialSubject(_,subject)
+==>
+    aligned_entity(subject).
+
+propagation rule c2(Credential cred, CredentialEntity subject) <->
+    must !aligned_entity(subject)
+==>
+    !Credential::credentialSubject(cred,subject).
+
 
 % TODO: In the same credential, an entity cannot have two credential entities
 Entity(Tom).
@@ -102,8 +113,8 @@ Prop::source(has_job,Tom).
 Prop::target(has_job,Janitor).
 
 scope node = 5..20
-      , Prop = 3
-      , Entity = 4
+      , Prop = 4
+      , Entity = 5
       % , Credential = 3
       % , CredentialEntity = 4
       .
