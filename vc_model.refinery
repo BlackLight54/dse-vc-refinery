@@ -5,7 +5,7 @@ pred CIM(e) <->
 class Entity {
     contains Prop[] outgoing opposite source
     Prop[] incoming opposite target
-	contains CredentialEntity[1..10] trace opposite from
+	contains CredentialEntity[1..4] trace opposite from
 }
 
 class Prop {
@@ -25,6 +25,10 @@ pred selfLoopProp(Prop e) <-> Prop::source(e, s), Prop::target(e, s).
 
 error contains_loop_relationship(Prop e) <-> selfLoopProp(e).
 
+propagation rule no_self_loop(Prop p, Entity e)  <->
+    Prop::source(p, e)
+==>
+    !Prop::target(p,e).
 error non_connected(Entity n, Entity m) <-> n != m, !neighbours+(n, m).
 
 %% PIM ------ Credential claim model
@@ -67,6 +71,24 @@ error prop_and_cred_prop_target_should_align(CredentialProp cred_prop) <->
     Prop::target(prop,prop_entity),
     Entity::trace(entity,cred_entity),
     prop_entity != entity.
+propagation rule prop_source(CredentialProp cred_prop,CredentialEntity cred_entity) <->
+    must CredentialProp::from(cred_prop,prop),
+    must CredentialEntity::from(cred_entity,entity),
+    must Prop::source(prop,prop_entity),
+    prop_entity != entity
+==>
+    !CredentialProp::source(cred_prop,cred_entity).
+propagation rule prop_target(CredentialProp cred_prop,CredentialEntity cred_entity) <->
+    must CredentialProp::from(cred_prop,prop),
+    must CredentialEntity::from(cred_entity,entity),
+    must Prop::target(prop,prop_entity),
+    prop_entity != entity
+==>
+    !CredentialProp::target(cred_prop,cred_entity).
+
+
+
+
 error no_cred_props_for_cred_entity(CredentialEntity ent) <->
     !CredentialProp::target(_,ent),
     !CredentialProp::source(_,ent).
@@ -81,27 +103,43 @@ error creds_point_to_same_claim_set(Credential cred1, Credential cred2) <->
     Credential::credentialSubject(cred1,subj1),
     Credential::credentialSubject(cred2,subj2),
     cred_neigbors+(subj1,subj2).
-
+% propagation rule creds_dont_point_to_same_claim_set(Credential cred1, CredentialEntity e) <->
+%     Credential(cred2),
+%     cred1 != cred2,
+%     Credential::credentialSubject(cred2,subj),
+%     cred_neigbors+(subj,e)
+% ==>
+%     !Credential::credentialSubject(cred1,e).
 error cred_points_to_non_aligned_entity(Credential cred) <->
     Credential::credentialSubject(cred,subj),
     !aligned_entity(subj).
-
-propagation rule c1(CredentialEntity subject) <->
-    must Credential::credentialSubject(_,subject)
-==>
-    aligned_entity(subject).
+% propagation rule c1(CredentialEntity subject) <->
+%     must Credential::credentialSubject(_,subject)
+% ==>
+%     aligned_entity(subject).
 
 propagation rule c2(Credential cred, CredentialEntity subject) <->
     must !aligned_entity(subject)
 ==>
     !Credential::credentialSubject(cred,subject).
 
+propagation rule entity_fulfilled(Entity e, CredentialEntity c_e) <->
+    may !Entity::trace(e,c_e),
+    must Prop::trace(prop,cred_prop),
+    must Entity::incoming(e,prop),
+    must CredentialProp::target(cred_prop,_);
+    may !Entity::trace(e,c_e),
+    must Prop::trace(prop,cred_prop),
+    must Entity::outgoing(e,prop),
+    must CredentialProp::source(cred_prop,_)
+==>
+   !Entity::trace(e,c_e).
 
 % TODO: In the same credential, an entity cannot have two credential entities
 Entity(Tom).
 Entity(Blue_eyes).
 Entity(Man).
-Entity(Janitor).
+% Entity(Janitor).
 Prop(has).
 Prop::source(has,Tom).
 Prop::target(has,Blue_eyes).
@@ -111,10 +149,24 @@ Prop::target(is_a,Man).
 Prop(has_job).
 Prop::source(has_job,Tom).
 Prop::target(has_job,Janitor).
+% CredentialEntity(Tom1).
+% % CredentialEntity(Tom2).
+% CredentialEntity::from(Tom1,Tom).
+% % CredentialEntity::from(Tom2,Tom).
 
+CredentialEntity(Blue_eyes1).
+CredentialEntity::from(Blue_eyes1,Blue_eyes).
+CredentialEntity(Man1).
+CredentialEntity::from(Man1,Man).
+% !exists(CredentialEntity::new).
+CredentialProp(has_cred).
+CredentialProp::from(has_cred,has).
+CredentialProp(is_a_cred).
+CredentialProp::from(is_a_cred,is_a).
+% !exists(Credential::new).
 scope node = 5..20
-      , Prop = 4
-      , Entity = 5
-      % , Credential = 3
+      , Prop = 3
+      , Entity = 4
+      , Credential = 2
       % , CredentialEntity = 4
       .
