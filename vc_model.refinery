@@ -14,10 +14,21 @@ class Prop {
     contains CredentialProp[1] trace opposite from
 }
 
+error number_of_CredentialEntity(CredentialEntity c_e1,CredentialEntity c_e2) <->
+    Entity::trace(e,c_e1),
+    Entity::trace(e,c_e2),
+    c_e1 != c_e2,
+    CredentialProp::target(c_p1,c_e1),
+    CredentialProp::target(c_p2,c_e2),
+    c_p1 != c_p2.
+
 pred neighbours(Entity s, Entity t) <->
+    s != t,
     Prop(e),
     Prop::source(e, s),
     Prop::target(e, t);
+    s != t,
+    Prop(e),
     Prop::source(e, t),
     Prop::target(e, s).
 
@@ -139,7 +150,7 @@ propagation rule entity_fulfilled(Entity e, CredentialEntity c_e) <->
 Entity(Tom).
 Entity(Blue_eyes).
 Entity(Man).
-% Entity(Janitor).
+Entity(Janitor).
 Prop(has).
 Prop::source(has,Tom).
 Prop::target(has,Blue_eyes).
@@ -149,11 +160,11 @@ Prop::target(is_a,Man).
 Prop(has_job).
 Prop::source(has_job,Tom).
 Prop::target(has_job,Janitor).
-% CredentialEntity(Tom1).
-% % CredentialEntity(Tom2).
-% CredentialEntity::from(Tom1,Tom).
-% % CredentialEntity::from(Tom2,Tom).
-
+CredentialEntity(Tom1).
+CredentialEntity(Tom2).
+CredentialEntity::from(Tom1,Tom).
+CredentialEntity::from(Tom2,Tom).
+% TODO: Új pred, egy Entity-n belül egydinek kell lennie a Credenital Entityhez rendeléshez
 CredentialEntity(Blue_eyes1).
 CredentialEntity::from(Blue_eyes1,Blue_eyes).
 CredentialEntity(Man1).
@@ -163,10 +174,11 @@ CredentialProp(has_cred).
 CredentialProp::from(has_cred,has).
 CredentialProp(is_a_cred).
 CredentialProp::from(is_a_cred,is_a).
-% !exists(Credential::new).
+!exists(Credential::new).
 scope node = 5..20
       , Prop = 3
+      , CredentialProp = 3
       , Entity = 4
-      , Credential = 2
+      % , Credential = 1
       % , CredentialEntity = 4
       .
