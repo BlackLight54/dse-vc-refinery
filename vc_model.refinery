@@ -3,22 +3,94 @@ pred CIM(e) <->
     Entity(e);
     Prop(e).
 class Entity {
-    contains Prop[] outgoing
-    Prop[] incoming
+    contains Prop[] property
 	contains CredentialEntity[1..4] trace
 }
 
 class Prop {
+    Entity[1] value
     contains CredentialProp[1] trace
 }
 
-propagation rule prop_only_has_one_target(Entity e, Prop p) <->
-    may Entity::incoming(e,p),
-    must Entity(target),
-    target != e,
-    must Entity::incoming(target,p)
+pred statement(Entity subject, Prop property, Entity value) <->
+    subject != value,
+    property(subject,property),
+    value(property,value).
+
+propagation rule statement_rule(Entity subject, Prop property, Entity value) <->
+    must statement(subject,property,value)
 ==>
-    !Entity::incoming(e,p).
+    property(subject,property),
+    value(property,value).
+
+propagation rule no_self_loop(Prop p, Entity e)  <->
+    must property(e, p) ==> !value(p,e).
+
+pred neighbours(Entity s, Entity t) <->
+    statement(s,_,t);statement(t,_,s).
+
+error non_connected(Entity n, Entity m) <-> n != m, !neighbours+(n, m).
+
+% PIM ------ Credential claim model
+pred PIM(e) <->
+    CredentialEntity(e);
+    CredentialProp(e);
+    Credential(e).
+class CredentialEntity {
+    contains Credential _ opposite credentialSubject
+}
+class CredentialProp {
+    CredentialEntity[1] source
+    CredentialEntity[1] target
+}
+
+pred credential_statement(CredentialEntity source, CredentialProp prop, CredentialEntity target) <->
+    source != target,
+    CredentialProp::source(prop,source),
+    CredentialProp::target(prop,target).
+
+propagation rule credential_statement_rule(CredentialEntity source, CredentialProp prop, CredentialEntity target) <->
+    must credential_statement(source,prop,target)
+==>
+    CredentialProp::source(prop,source),
+    CredentialProp::target(prop,target).
+
+pred cred_neigbors(CredentialEntity s, CredentialEntity t) <->
+    credential_statement(s,_,t); credential_statement(t,_,s).
+
+propagation rule pim_and_cim_should_align(Entity subject, Prop property, Entity value) <->
+    may statement(subject, property, value),
+    must credential_statement(source,prop,target),
+    must Entity::trace(subject,source),
+    must Prop::trace(property,prop),
+    must Entity::trace(value,target)
+==>
+    statement(subject, property, value).
+
+propagation rule tracing_cim_to_pim_when_cred_statement_is_available(
+    Entity subject, Prop property, Entity value,
+    CredentialEntity source, CredentialProp prop, CredentialEntity target
+) <->
+    must credential_statement(source,prop,target),
+    must statement(subject, property, value),
+    must Prop::trace(property,prop),
+    may Entity::trace(subject,source),
+    may Entity::trace(value,target)
+==>
+    Entity::trace(subject,source),
+    Prop::trace(property,prop),
+    Entity::trace(value,target).
+
+propagation rule pim_and_cim_should_align_neg(CredentialEntity source, CredentialProp prop, CredentialEntity target) <->
+    may credential_statement(source, prop, target),
+    must !statement(subject, property, value),
+    must Entity::trace(subject,source),
+    must Prop::trace(property,prop),
+    must Entity::trace(value,target)
+==>
+    !credential_statement(source, prop, target).
+
+
 error number_of_CredentialEntity(CredentialEntity c_e1,CredentialEntity c_e2) <->
     Entity::trace(e,c_e1),
     Entity::trace(e,c_e2),
@@ -26,164 +98,76 @@ error number_of_CredentialEntity(CredentialEntity c_e1,CredentialEntity c_e2) <-
     CredentialProp::target(c_p1,c_e1),
     CredentialProp::target(c_p2,c_e2),
     c_p1 != c_p2.
-
-
-
-pred neighbours(Entity s, Entity t) <->
-    s != t,
-    Prop(e),
-    Entity::outgoing(s, e),
-    Entity::incoming( t,e);
-    s != t,
-    Prop(e),
-    Entity::outgoing(t, e),
-    Entity::incoming( s,e).
-
-pred selfLoopProp(Prop e) <-> Entity::outgoing(s, e), Entity::incoming( s,e).
-
-error contains_loop_relationship(Prop e) <-> selfLoopProp(e).
-
-propagation rule no_self_loop(Prop p, Entity e)  <->
-    Entity::outgoing(e, p)
-==>
-    !Entity::incoming(e,p).
-error non_connected(Entity n, Entity m) <-> n != m, !neighbours+(n, m).
-
-%% PIM ------ Credential claim model
-pred PIM(e) <->
-    CredentialEntity(e);
-    CredentialProp(e);
-    Credential(e).
-class CredentialEntity {
-    CredentialProp[] outgoing opposite source
-    CredentialProp[] incoming opposite target
-    contains Credential _ opposite credentialSubject
-}
-class CredentialProp {
-	CredentialEntity[1] source opposite outgoing
-    CredentialEntity[1] target opposite incoming
-}
-class Credential {
-	container CredentialEntity credentialSubject opposite _
-}
-
-
-pred cred_neigbors(CredentialEntity s, CredentialEntity t) <->
-    CredentialProp(e),
-    CredentialEntity::outgoing(s, e),
-    CredentialProp::target(e, t)
-;
-    CredentialEntity::outgoing(t, e),
-    CredentialProp::target(e, s).
-error prop_and_cred_prop_source_should_align(CredentialProp cred_prop) <->
-    CredentialEntity::outgoing(cred_entity, cred_prop),
-    Prop::trace(prop,cred_prop),
-    Entity::outgoing(prop_entity, prop),
-    Entity::trace(entity,cred_entity),
-    prop_entity != entity.
-error prop_and_cred_prop_target_should_align(CredentialProp cred_prop) <->
-    CredentialProp::target(cred_prop,cred_entity),
-    Prop::trace(prop,cred_prop),
-    Entity::incoming(prop_entity,prop),
-    Entity::trace(entity,cred_entity),
-    prop_entity != entity.
 propagation rule prop_source(CredentialProp cred_prop,CredentialEntity cred_entity) <->
     must Prop::trace(prop,cred_prop),
     must Entity::trace(entity,cred_entity),
-    must Entity::outgoing(prop_entity, prop),
+    must property(prop_entity, prop),
     prop_entity != entity
 ==>
-    !CredentialEntity::outgoing(cred_entity, cred_prop).
+    !CredentialProp::source(cred_prop,cred_entity).
 propagation rule prop_target(CredentialProp cred_prop,CredentialEntity cred_entity) <->
     must Prop::trace(prop,cred_prop),
     must Entity::trace(entity,cred_entity),
-    must Entity::incoming(prop_entity,prop),
+    must value(prop,prop_entity),
     prop_entity != entity
 ==>
     !CredentialProp::target(cred_prop,cred_entity).
-
-
-
-
 error no_cred_props_for_cred_entity(CredentialEntity ent) <->
     !CredentialProp::target(_,ent),
-    !CredentialEntity::outgoing(ent, _).
+    !CredentialProp::source(_,ent).
+
 pred aligned_entites(CredentialEntity e1, CredentialEntity e2) <->
     e1 != e2,
     Entity::trace(e,e1),
     Entity::trace(e,e2).
 pred aligned_entity(CredentialEntity e) <->
     aligned_entites(e,_).
-error creds_point_to_same_claim_set(Credential cred1, Credential cred2) <->
-    cred1 != cred2,
-    Credential::credentialSubject(cred1,subj1),
-    Credential::credentialSubject(cred2,subj2),
-    cred_neigbors+(subj1,subj2).
-% propagation rule creds_dont_point_to_same_claim_set(Credential cred1, CredentialEntity e) <->
-%     Credential(cred2),
-%     cred1 != cred2,
-%     Credential::credentialSubject(cred2,subj),
-%     cred_neigbors+(subj,e)
-% ==>
-%     !Credential::credentialSubject(cred1,e).
-error cred_points_to_non_aligned_entity(Credential cred) <->
-    Credential::credentialSubject(cred,subj),
-    !aligned_entity(subj).
-% propagation rule c1(CredentialEntity subject) <->
-%     must Credential::credentialSubject(_,subject)
-% ==>
-%     aligned_entity(subject).
 
-propagation rule c2(Credential cred, CredentialEntity subject) <->
-    must !aligned_entity(subject)
+
+class Credential {
+	container CredentialEntity credentialSubject opposite _
+}
+
+pred Root_cred_entity(CredentialEntity e) <->
+    !credential_statement(_,_,e).
+
+propagation rule cred_points_to_root_cred_e(CredentialEntity e, Credential c) <->
+    must !Root_cred_entity(e)
 ==>
-    !Credential::credentialSubject(cred,subject).
+    !credentialSubject(c,e).
 
-propagation rule entity_fulfilled(Entity e, CredentialEntity c_e) <->
-    may !Entity::trace(e,c_e),
-    must Prop::trace(prop,cred_prop),
-    must Entity::incoming(e,prop),
-    must CredentialProp::target(cred_prop,_);
-    may !Entity::trace(e,c_e),
-    must Prop::trace(prop,cred_prop),
-    must Entity::outgoing(e,prop),
-    must CredentialEntity::outgoing(_, cred_prop)
-==>
-   !Entity::trace(e,c_e).
+error root_ent_doesnt_have_cred(Root_cred_entity e) <->
+    !credentialSubject(_,e).
 
-% TODO: In the same credential, an entity cannot have two credential entities
-Entity(Tom).
-Entity(Blue_eyes).
-Entity(Man).
-Entity(Janitor).
-Prop(has).
-Entity::outgoing(Tom, has).
-Entity::incoming(Blue_eyes,has).
-Prop(is_a).
-Entity::outgoing(Tom, is_a).
-Entity::incoming(Man,is_a).
-Prop(has_job).
-Entity::outgoing(Tom, has_job).
-Entity::incoming(Janitor,has_job).
-CredentialEntity(Tom1).
-CredentialEntity(Tom2).
-Entity::trace(Tom,Tom1).
-Entity::trace(Tom,Tom2).
-% TODO: Új pred, egy Entity-n belül egydinek kell lennie a Credenital Entityhez rendeléshez
-CredentialEntity(Blue_eyes1).
-Entity::trace(Blue_eyes,Blue_eyes1).
-CredentialEntity(Man1).
-Entity::trace(Man,Man1).
+
+
+
+statement(Tom,has,Car).
+statement(Tom,job,accountant).
+statement(accountant,perk,vacation).
+% statement(accountant,salary,salary_amount).
+% statement(Car,color,blue).
+% statement(Car,price,price_amount).
+!exists(Prop::new).
+!exists(Entity::new).
+
+Prop::trace(has,has1).
+Prop::trace(job,job1).
+Prop::trace(perk,perk1).
+% Prop::trace(salary,salary1).
+% Prop::trace(color,color1).
+
+
+credential_statement(Tom1,has1,Car1).
+% credential_statement(Tom2,job1,accountant1).
+credential_statement(accountant2,perk1,vacation1).
+% credential_statement(accountant3,salary1,salary_amount1).
+% credential_statement(Car2,color1,blue1).
 % !exists(CredentialEntity::new).
-CredentialProp(has_cred).
-Prop::trace(has,has_cred).
-CredentialProp(is_a_cred).
-Prop::trace(is_a,is_a_cred).
-!exists(Credential::new).
-scope node = 5..20
-      , Prop = 3
-      , CredentialProp = 3
-      , Entity = 4
-      % , Credential = 1
-      % , CredentialEntity = 4
+% !exists(CredentialProp::new).
+% !exists(Credential::new).
+scope node = 5..30
+      % , Prop = 4
+      % , Entity = 5
+      , CredentialEntity = 6
       .
