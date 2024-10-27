@@ -1,5 +1,5 @@
 % CIM --- Information graph to construct the credentials from
-pred CIM(e) <->
+shadow pred CIM(e) <->
     Entity(e);
     Prop(e).
 class Entity {
@@ -32,7 +32,7 @@ pred neighbours(Entity s, Entity t) <->
 error non_connected(Entity n, Entity m) <-> n != m, !neighbours+(n, m).
 
 % PIM ------ Credential claim model
-pred PIM(e) <->
+shadow pred PIM(e) <->
     CredentialEntity(e);
     CredentialProp(e);
     Credential(e).
@@ -116,12 +116,11 @@ error no_cred_props_for_cred_entity(CredentialEntity ent) <->
     !CredentialProp::target(_,ent),
     !CredentialProp::source(_,ent).
 
-pred aligned_entites(CredentialEntity e1, CredentialEntity e2) <->
+shadow pred aligned_entites(CredentialEntity e1, CredentialEntity e2) <->
     e1 != e2,
     Entity::trace(e,e1),
     Entity::trace(e,e2).
-pred aligned_entity(CredentialEntity e) <->
-    aligned_entites(e,_).
+
 
 
 class Credential {
@@ -142,32 +141,33 @@ error root_ent_doesnt_have_cred(Root_cred_entity e) <->
 
 
 
-statement(Tom,has,Car).
-statement(Tom,job,accountant).
-statement(accountant,perk,vacation).
+% statement(Tom,has,Car).
+% statement(Tom,job,accountant).
+% statement(accountant,perk,vacation).
 % statement(accountant,salary,salary_amount).
 % statement(Car,color,blue).
 % statement(Car,price,price_amount).
-!exists(Prop::new).
-!exists(Entity::new).
+% !exists(Prop::new).
+% !exists(Entity::new).
 
-Prop::trace(has,has1).
-Prop::trace(job,job1).
-Prop::trace(perk,perk1).
+% Prop::trace(has,has1).
+% Prop::trace(job,job1).
+% Prop::trace(perk,perk1).
 % Prop::trace(salary,salary1).
 % Prop::trace(color,color1).
 
 
-credential_statement(Tom1,has1,Car1).
+% credential_statement(Tom1,has1,Car1).
 % credential_statement(Tom2,job1,accountant1).
-credential_statement(accountant2,perk1,vacation1).
+% credential_statement(accountant2,perk1,vacation1).
 % credential_statement(accountant3,salary1,salary_amount1).
 % credential_statement(Car2,color1,blue1).
 % !exists(CredentialEntity::new).
 % !exists(CredentialProp::new).
 % !exists(Credential::new).
-scope node = 5..30
+scope node = 1..40
       % , Prop = 4
       % , Entity = 5
-      , CredentialEntity = 6
+      % , CredentialEntity = 6
+      % , Credential = 1
       .
