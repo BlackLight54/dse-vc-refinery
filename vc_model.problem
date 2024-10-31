@@ -116,6 +116,9 @@ error no_cred_props_for_cred_entity(CredentialEntity ent) <->
     !CredentialProp::target(_,ent),
     !CredentialProp::source(_,ent).
 
+
+    
+
 shadow pred aligned_entites(CredentialEntity e1, CredentialEntity e2) <->
     e1 != e2,
     Entity::trace(e,e1),
@@ -125,11 +128,16 @@ shadow pred aligned_entites(CredentialEntity e1, CredentialEntity e2) <->
 
 class Credential {
 	container CredentialEntity credentialSubject opposite _
-    contains Formatted_Credential trace 
+    contains Formatted_Credential[1..*] trace 
 }
 
 pred Root_cred_entity(CredentialEntity e) <->
     !credential_statement(_,_,e).
+
+propagation rule targets_are_not_roots(CredentialEntity e) <->
+    must target(_,e)
+==>
+    !Root_cred_entity(e).
 
 propagation rule cred_points_to_root_cred_e(CredentialEntity e, Credential c) <->
     must !Root_cred_entity(e)
@@ -138,6 +146,15 @@ propagation rule cred_points_to_root_cred_e(CredentialEntity e, Credential c) <-
 
 error root_ent_doesnt_have_cred(Root_cred_entity e) <->
     !credentialSubject(_,e).
+
+pred common_parent(Prop p1, Prop p2) <->
+    p1 != p2,
+    Prop::trace(p1,cp1),
+    Prop::trace(p2,cp2),
+    CredentialProp::source(cp1,e1),
+    CredentialProp::source(cp2,e2),
+    e1 == e2
+.
 
 % PSM --- Carrying format specific 
 shadow pred PSM(e) <->
@@ -168,11 +185,18 @@ Prop::trace(id_number,a_id_number).
 
 
 credential_statement(a_Tom1,a_owns_plot,a_plot_num_387).
-credential_statement(a_Tom2,a_id_number,a_id_num_142536EE).
+source(a_id_number,a_Tom2).
+% credential_statement(a_Tom2,a_id_number,a_id_num_142536EE).
 
-credentialSubject(property_sheet,a_Tom1).
-credentialSubject(id_card,a_Tom2).
+% credentialSubject(property_sheet,a_Tom1).
+% credentialSubject(id_card,a_Tom2).
 
+Credential::trace(property_sheet, anoncreds_property_sheet).
+% Credential::trace(property_sheet, json_ld_property_sheet).
+!common_parent(owns_plot,id_number).
+% Credential::trace(id_card, anoncreds_id_card).
+% Credential::trace(id_card, json_ld_id_card).
+% !exists(Formatted_Credential::new).
 % credential_statement(accountant2,perk1,vacation1).
 % credential_statement(accountant3,salary1,salary_amount1).
 % credential_statement(Car2,color1,blue1).
@@ -183,5 +207,6 @@ scope node = 1..20
       % , Prop = 4
       % , Entity = 5
       % , CredentialEntity = 6
-      , Credential = 2
+      , Credential = 1..2
+      
       .
