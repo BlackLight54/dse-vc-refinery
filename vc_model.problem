@@ -125,6 +125,7 @@ shadow pred aligned_entites(CredentialEntity e1, CredentialEntity e2) <->
 
 class Credential {
 	container CredentialEntity credentialSubject opposite _
+    contains Formatted_Credential trace 
 }
 
 pred Root_cred_entity(CredentialEntity e) <->
@@ -138,36 +139,49 @@ propagation rule cred_points_to_root_cred_e(CredentialEntity e, Credential c) <-
 error root_ent_doesnt_have_cred(Root_cred_entity e) <->
     !credentialSubject(_,e).
 
+% PSM --- Carrying format specific 
+shadow pred PSM(e) <->
+    Formatted_Credential(e).
 
+class Formatted_Credential {
+    
+}
 
+statement(Tom,owns_plot,plot_num_387).
+statement(Tom,id_number,id_num_142536EE).
 
-% statement(Tom,has,Car).
-% statement(Tom,job,accountant).
 % statement(accountant,perk,vacation).
 % statement(accountant,salary,salary_amount).
 % statement(Car,color,blue).
 % statement(Car,price,price_amount).
-% !exists(Prop::new).
-% !exists(Entity::new).
+!exists(Prop::new).
+!exists(Entity::new).
 
-% Prop::trace(has,has1).
+Prop::trace(owns_plot,a_owns_plot).
+Prop::trace(id_number,a_id_number).
+
+
 % Prop::trace(job,job1).
 % Prop::trace(perk,perk1).
 % Prop::trace(salary,salary1).
 % Prop::trace(color,color1).
 
 
-% credential_statement(Tom1,has1,Car1).
-% credential_statement(Tom2,job1,accountant1).
+credential_statement(a_Tom1,a_owns_plot,a_plot_num_387).
+credential_statement(a_Tom2,a_id_number,a_id_num_142536EE).
+
+credentialSubject(property_sheet,a_Tom1).
+credentialSubject(id_card,a_Tom2).
+
 % credential_statement(accountant2,perk1,vacation1).
 % credential_statement(accountant3,salary1,salary_amount1).
 % credential_statement(Car2,color1,blue1).
 % !exists(CredentialEntity::new).
 % !exists(CredentialProp::new).
 % !exists(Credential::new).
-scope node = 1..40
+scope node = 1..20
       % , Prop = 4
       % , Entity = 5
       % , CredentialEntity = 6
-      % , Credential = 1
+      , Credential = 2
       .
