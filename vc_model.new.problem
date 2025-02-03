@@ -1,0 +1,211 @@
+% CIM --- Information graph to construct the credentials from
+shadow pred CIM(e) <-> Entity(e); Prop(e).
+
+abstract class Entity {
+	contains Prop[] property
+}
+
+class Subject extends Entity {
+}
+
+propagation rule root_is_subj(Entity e) <->
+    must !value(_, e)
+    ==>
+    Subject(e).
+
+class Value extends Entity {
+}
+
+% TODO: make more accurate
+pred Leaf(Value e) <-> !property(e, _).
+
+class Prop {
+	contains Value[1] value
+    contains Claim[1] trace
+}
+
+pred statement(Entity subject, Prop property, Entity value) <-> subject != value, property(subject, property), value(property, value).
+
+propagation rule statement_rule(Entity subject, Prop property, Entity value) <->
+    must statement(subject, property, value)
+==>
+    Value(value),
+    property(subject,property),
+    value(property,value).
+propagation rule statement_rule_bw(Entity subject, Prop property, Entity value) <->
+    must property(subject, property), must value(property, value)
+==>
+    Value(value),
+    statement(subject,property,value).
+
+pred neighbours(Entity s, Entity t) <-> statement(s, _, t); statement(t, _, s).
+
+error non_connected(Entity n, Entity m) <-> n != m, !neighbours+(n, m).
+
+propagation rule no_self_loop(Prop p, Entity e)  <->    must property(e, p) ==> !value(p,e).
+
+% PIM ------ Credential claim model
+shadow pred PIM(e) <-> CredEntity(e); Claim(e); Credential(e).
+
+abstract class CredEntity {
+    Entity[1] trace
+}
+
+class CredentialSubject extends CredEntity {
+	contains Credential[0..1] _ opposite credentialSubject
+}
+
+propagation rule subject_traces_to_subject(CredEntity t) <->
+    must Subject(e), must CredEntity::trace(t,e)
+==>
+    CredentialSubject(t).
+
+class CredentialValue extends CredEntity {
+}
+
+class Claim {
+	contains CredEntity[1] source
+    contains CredentialValue[1] target
+}
+
+pred cred_neigbors(CredEntity s, CredEntity t) <-> credential_statement(s, _, t); credential_statement(t, _, s).
+
+propagation rule root_is_cred_subj( CredEntity cs ) <->
+    may CredentialSubject(cs), must !target(_, cs)
+==>
+    CredentialSubject(cs).
+
+error no_empty_cred(CredentialSubject cs) <-> !source(_, cs).
+
+pred credential_statement(CredEntity source, Claim prop, CredEntity target) <-> 
+    source != target,
+    Claim::source(prop, source),
+    Claim::target(prop, target),
+    CredentialValue(target).
+
+propagation rule credential_statement_rule(CredEntity source, Claim prop, CredEntity target) <->
+    must credential_statement(source, prop, target)
+==>
+    Claim::source(prop,source),
+    Claim::target(prop,target),
+    CredentialValue(target).
+propagation rule credential_statement_rule_opp(CredEntity source, Claim prop, CredEntity target) <->
+    must Claim::source(prop, source), must Claim::target(prop, target)
+==>
+    credential_statement(source,prop,target),
+    CredentialValue(target).
+
+propagation rule prop_t(Claim c, CredEntity t) <->
+    must Prop::trace(p,c),
+    must Prop::value(p,e),
+    must !CredEntity::trace(t,e),
+    may Claim::target(c,t)
+==>
+    !Claim::target(c,t).
+
+    
+propagation rule prop_s(Claim c, CredEntity s) <->
+    must Prop::trace(p,c),
+    must Entity::property(e,p),
+    must !CredEntity::trace(s,e),
+    may Claim::source(c,s)
+==>
+    !Claim::source(c,s).
+
+% error pim_and_cim_dont_trace(
+% Entity subject, Prop property, Value value,
+%     CredEntity source, Claim prop, CredEntity target
+% ) <->
+%     statement(subject, property, value),
+%     Prop::trace(property,prop),
+%     credential_statement(source,prop,target),
+%     !Entity::trace(subject,source)
+% ;
+%     statement(subject, property, value),
+%     Prop::trace(property,prop),
+%     credential_statement(source,prop,target),
+%     !Entity::trace(value,target).
+% % propagation rule tracing_cim_to_pim_when_cred_statement_is_available(
+%      Entity subject, Prop property, Value value,
+%     CredEntity source, Claim prop, CredEntity target
+% ) <->
+%     must statement(subject, property, value),
+%     must Prop::trace(property,prop),
+%     must credential_statement(source,prop,target),
+%     may Entity::trace(value,target)
+% ==>    
+%     CredentialValue(target),
+%     Entity::trace(value,target).
+% propagation rule tracing_cim_to_pim_when_cred_statement_is_available_s(
+%     Entity subject,CredEntity source
+% ) <->
+%     must credential_statement(source, prop,_),
+%     must statement(subject, property, _),
+%     must Prop::trace(property,prop)
+%     ,may Entity::trace(subject,source)
+% ==>    
+%     Entity::trace(subject,source).
+% propagation rule pim_and_cim_should_align_neg(CredEntity source, Claim prop, CredEntity target) <->
+%     must !statement(subject, property, value),
+%     must Entity::trace(subject,source),
+%     must Prop::trace(property,prop),
+%     must Entity::trace(value,target),
+%     may credential_statement(source, prop, target)
+% ==>    
+%     !credential_statement(source, prop, target).
+pred aligned(CredEntity c_e1, CredEntity c_e2) <-> 
+    CredEntity::trace(c_e1,e),
+    CredEntity::trace(c_e2,e),
+    c_e1 != c_e2.
+
+class Credential {
+	container CredentialSubject credentialSubject opposite _
+    contains AnoncredsCredentialSchema[1] anoncreds 
+    contains JsonLdCredentialSchema[1] json_ld 
+    contains JwtVCCredentialSchema[1] jwt_vc
+}
+
+pred common_parent(Prop p1, Prop p2) <-> p1 != p2, Prop::trace(p1, cp1), Prop::trace(p2, cp2), Claim::source(cp1, e1), Claim::source(cp2, e2), e1 == e2.
+
+% PSM --- Carrying format specific 
+shadow pred PSM(e) <-> Formatted_Credential(e).
+
+abstract class Formatted_Credential {
+
+}
+
+class AnoncredsCredentialSchema extends Formatted_Credential.
+
+class JsonLdCredentialSchema extends Formatted_Credential.
+
+class JwtVCCredentialSchema extends Formatted_Credential.
+
+Subject(Tom).
+statement(Tom, owns_plot, plot_num_387).
+statement(Tom, id_number, id_num_142536EE).
+!exists(Subject::new).
+% !exists(Prop::new).
+% !exists(Value::new).
+
+% Prop::trace(owns_plot, a_owns_plot).
+% Prop::trace(id_number, a_id_number).
+% CredEntity::trace(Tom1,Tom).
+% CredEntity::trace(Tom, Tom2).
+% CredentialSubject(Tom1).
+% CredEntity::trace(plot_num_387_1,plot_num_387).
+% Entity::trace(id_num_142536EE, id_num_142536EE_1).
+CredEntity(id_num_142536EE_1).
+% !common_parent(owns_plot,id_number).
+% !exists(CredentialSubject::new).
+% !exists(Claim::new).
+% !exists(CredentialValue::new).
+
+% !exists(Credential::new).
+% !exists(Formatted_Credential::new).
+scope node = 1..20
+      , Prop = 2
+      , Entity = 3
+      % , CredEntity = 4
+      , Credential = 2
+      
+      .

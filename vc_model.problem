@@ -1,7 +1,13 @@
 % CIM --- Information graph to construct the credentials from
-shadow pred CIM(e) <->
+pred CIM(e) <->
     Entity(e);
     Prop(e).
+shadow pred PIM(e) <->
+    CredentialEntity(e);
+    CredentialProp(e);
+    Credential(e).
+pred PSM(e) <->
+    Formatted_Credential(e).
 class Entity {
     contains Prop[] property
 	contains CredentialEntity[1..4] trace
@@ -32,10 +38,7 @@ pred neighbours(Entity s, Entity t) <->
 error non_connected(Entity n, Entity m) <-> n != m, !neighbours+(n, m).
 
 % PIM ------ Credential claim model
-shadow pred PIM(e) <->
-    CredentialEntity(e);
-    CredentialProp(e);
-    Credential(e).
+
 class CredentialEntity {
     contains Credential _ opposite credentialSubject
 }
@@ -128,7 +131,9 @@ shadow pred aligned_entites(CredentialEntity e1, CredentialEntity e2) <->
 
 class Credential {
 	container CredentialEntity credentialSubject opposite _
-    contains Formatted_Credential[1..*] trace 
+    contains AnoncredsCredentialSchema[1] anoncreds 
+    contains JsonLdCredentialSchema[1] json_ld 
+    contains JwtVCCredentialSchema[1] jwt_vc 
 }
 
 pred Root_cred_entity(CredentialEntity e) <->
@@ -157,12 +162,15 @@ pred common_parent(Prop p1, Prop p2) <->
 .
 
 % PSM --- Carrying format specific 
-shadow pred PSM(e) <->
-    Formatted_Credential(e).
 
-class Formatted_Credential {
+
+abstract class Formatted_Credential {
     
 }
+
+class AnoncredsCredentialSchema extends Formatted_Credential.
+class JsonLdCredentialSchema extends Formatted_Credential.
+class JwtVCCredentialSchema extends Formatted_Credential.
 
 statement(Tom,owns_plot,plot_num_387).
 statement(Tom,id_number,id_num_142536EE).
@@ -178,20 +186,19 @@ Prop::trace(owns_plot,a_owns_plot).
 Prop::trace(id_number,a_id_number).
 
 
-% Prop::trace(job,job1).
-% Prop::trace(perk,perk1).
-% Prop::trace(salary,salary1).
-% Prop::trace(color,color1).
+% % Prop::trace(job,job1).
+% % Prop::trace(perk,perk1).
+% % Prop::trace(salary,salary1).
+% % Prop::trace(color,color1).
 
 
 credential_statement(a_Tom1,a_owns_plot,a_plot_num_387).
-source(a_id_number,a_Tom2).
-% credential_statement(a_Tom2,a_id_number,a_id_num_142536EE).
+% source(a_id_number,a_Tom2).
+credential_statement(a_Tom2,a_id_number,a_id_num_142536EE).
 
-% credentialSubject(property_sheet,a_Tom1).
-% credentialSubject(id_card,a_Tom2).
+credentialSubject(property_sheet,a_Tom1).
+credentialSubject(id_card,a_Tom2).
 
-Credential::trace(property_sheet, anoncreds_property_sheet).
 % Credential::trace(property_sheet, json_ld_property_sheet).
 !common_parent(owns_plot,id_number).
 % Credential::trace(id_card, anoncreds_id_card).
